@@ -3,7 +3,7 @@ import {
 } from 'ramda'
 
 const COLUMN_IDS = ['34876', '34887']
-const spinnerHtml = '<svg class="hax-spinner" viewBox="0 0 50 50"></svg>'
+const REVIEWS_REQUIRED = 2
 
 const spinnerElement = document.createElement('svg')
 spinnerElement.setAttribute('class', 'hax-spinner')
@@ -19,6 +19,9 @@ const setElementContents = element => (...args) => {
   args.forEach(element.appendChild.bind(element))
 }
 
+const getApprovals = pr => pr.reviewers.filter(review => review.approved).length
+const isApproved = pr => getApprovals(pr) >= REVIEWS_REQUIRED
+
 const createFetchReviews = (issue) => {
   const issueId = issue.getAttribute('data-issue-id')
   const issueContent = issue.querySelector('.ghx-issue-content')
@@ -30,20 +33,25 @@ const createFetchReviews = (issue) => {
 
     const issueData = await fetchIssue(issueId)
 
-    const links = chain(prop('pullRequests'), issueData.detail).map((pr) => {
-      const approves = pr.reviewers.filter(review => review.approved).length
+    const pullRequests = chain(prop('pullRequests'), issueData.detail)
+
+    const links = pullRequests.map((pr) => {
+      const approvals = getApprovals(pr)
       const prContainer = document.createElement('span')
       const prLink = document.createElement('a')
       prLink.href = pr.url
       prLink.target = '_blank'
       prLink.innerText = pr.id
-
-      const text = document.createTextNode(`: ${approves}${approves >= 2 ? ' ✅' : ''}`)
+      const text = document.createTextNode(`: ${approvals}${isApproved(pr) ? ' ✅' : ''}`)
 
       setElementContents(prContainer)(prLink, text)
 
       return prContainer
     })
+
+    if (pullRequests.some(isApproved)) {
+      issue.classList.toggle('approved', true)
+    }
 
     setElementContents(customContainer)(...links)
   }
