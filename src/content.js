@@ -12,11 +12,11 @@ spinnerElement.innerHTML = '<circle class="path" cx="25" cy="25" r="20" fill="no
 
 const fetchIssue = issueId => fetch(`https://tools.adidas-group.com/jira/rest/dev-status/1.0/issue/detail?issueId=${issueId}&applicationType=stash&dataType=pullrequest&_=${new Date().getTime()}`).then(res => res.json())
 
-const clearElement = element => [...element.children].forEach(child => element.removeChild(child))
+const clearElement = element => [...element.children].forEach(element.removeChild.bind(element))
 
-const setElementContents = element => (...args) => {
+const setElementContents = element => (children) => {
   clearElement(element)
-  args.forEach(element.appendChild.bind(element))
+  children.forEach(element.appendChild.bind(element))
 }
 
 const getApprovals = pr => pr.reviewers.filter(review => review.approved).length
@@ -24,36 +24,35 @@ const isApproved = pr => getApprovals(pr) >= REVIEWS_REQUIRED
 
 const createFetchReviews = (issue) => {
   const issueId = issue.getAttribute('data-issue-id')
-  const issueContent = issue.querySelector('.ghx-issue-content')
   const customContainer = document.createElement('div')
+
+  const issueContent = issue.querySelector('.ghx-issue-content')
   issueContent.appendChild(customContainer)
 
   return async function fetchReviews() {
     setElementContents(customContainer)(spinnerElement)
 
     const issueData = await fetchIssue(issueId)
-
     const pullRequests = chain(prop('pullRequests'), issueData.detail)
+
+    issue.classList.toggle('approved', pullRequests.some(isApproved))
 
     const links = pullRequests.map((pr) => {
       const approvals = getApprovals(pr)
-      const prContainer = document.createElement('span')
-      const prLink = document.createElement('a')
-      prLink.href = pr.url
-      prLink.target = '_blank'
-      prLink.innerText = pr.id
       const text = document.createTextNode(`: ${approvals}${isApproved(pr) ? ' ✅' : ''}`)
 
-      setElementContents(prContainer)(prLink, text)
+      const linkToPR = document.createElement('a')
+      linkToPR.href = pr.url
+      linkToPR.target = '_blank'
+      linkToPR.innerText = pr.id
+
+      const prContainer = document.createElement('span')
+      setElementContents(prContainer)([linkToPR, text])
 
       return prContainer
     })
 
-    if (pullRequests.some(isApproved)) {
-      issue.classList.toggle('approved', true)
-    }
-
-    setElementContents(customContainer)(...links)
+    setElementContents(customContainer)(links)
   }
 }
 
