@@ -30,7 +30,7 @@ const createFetchReviews = (issue) => {
   issueContent.appendChild(customContainer)
 
   return async function fetchReviews() {
-    setElementContents(customContainer)(spinnerElement)
+    setElementContents(customContainer)([spinnerElement])
 
     const issueData = await fetchIssue(issueId)
     const pullRequests = chain(prop('pullRequests'), issueData.detail)
